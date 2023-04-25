@@ -23,6 +23,7 @@ import {
 } from "@openid/appauth/built/authorization_request_handler";
 import { AuthorizationResponse } from "@openid/appauth/built/authorization_response";
 import { AuthorizationServiceConfiguration } from "@openid/appauth/built/authorization_service_configuration";
+import { FetchRequestor } from "@openid/appauth/built/xhr";
 import { NodeCrypto } from '@openid/appauth/built/node_support/';
 import { NodeBasedHandler } from "@openid/appauth/built/node_support/node_request_handler";
 import { NodeRequestor } from "@openid/appauth/built/node_support/node_requestor";
@@ -52,13 +53,13 @@ export class AuthStateEmitter extends EventEmitter {
 const requestor = new NodeRequestor();
 
 /* an example open id connect provider */
-const openIdConnectUrl = "https://accounts.google.com";
+const openIdConnectUrl = "http://localhost:8001";
 
 /* example client configuration */
 const clientId =
-  "511828570984-7nmej36h9j2tebiqmpqh835naet4vci4.apps.googleusercontent.com";
+  "foo";
 const redirectUri = "http://127.0.0.1:8000";
-const scope = "openid";
+const scope = "openid profile email offline_access";
 
 export class AuthFlow {
   private notifier: AuthorizationNotifier;
@@ -85,28 +86,34 @@ export class AuthFlow {
       log("Authorization request complete ", request, response, error);
       if (response) {
         let codeVerifier: string | undefined;
-        if(request.internal && request.internal.code_verifier) {
+        if (request.internal && request.internal.code_verifier) {
           codeVerifier = request.internal.code_verifier;
         }
-
-        this.makeRefreshTokenRequest(response.code, codeVerifier)
-          .then(result => this.performWithFreshTokens())
-          .then(() => {
-            this.authStateEmitter.emit(AuthStateEmitter.ON_TOKEN_RESPONSE);
-            log("All Done.");
-          });
+        try {
+          this.makeRefreshTokenRequest(response.code, codeVerifier)
+            .then(result => this.performWithFreshTokens())
+            .then(() => {
+              this.authStateEmitter.emit(AuthStateEmitter.ON_TOKEN_RESPONSE);
+              log("All Done.");
+            });
+        } catch (error) {
+          log(`Something bad happened when making refresh token request ${error}`)
+        }
       }
     });
   }
 
   fetchServiceConfiguration(): Promise<void> {
-    return AuthorizationServiceConfiguration.fetchFromIssuer(
-      openIdConnectUrl,
-      requestor
-    ).then(response => {
-      log("Fetched service configuration", response);
-      this.configuration = response;
-    });
+    log("Fetching service configuration", openIdConnectUrl, requestor, "...")
+    return AuthorizationServiceConfiguration.fetchFromIssuer(openIdConnectUrl, new FetchRequestor())
+      .then(response => {
+        log('Fetched service configuration', response);
+        this.configuration = response;
+      })
+      .catch(error => {
+        log('Something bad happened', error);
+        log(`Something bad happened ${error}`)
+      });
   }
 
   makeAuthorizationRequest(username?: string) {
@@ -114,12 +121,10 @@ export class AuthFlow {
       log("Unknown service configuration");
       return;
     }
-
     const extras: StringMap = { prompt: "consent", access_type: "offline" };
     if (username) {
       extras["login_hint"] = username;
     }
-
     // create a request
     const request = new AuthorizationRequest({
       client_id: clientId,
@@ -129,27 +134,22 @@ export class AuthFlow {
       state: undefined,
       extras: extras
     }, new NodeCrypto());
-
     log("Making authorization request ", this.configuration, request);
-
     this.authorizationHandler.performAuthorizationRequest(
       this.configuration,
       request
     );
   }
 
-  private makeRefreshTokenRequest(code: string, codeVerifier: string|undefined): Promise<void> {
+  private makeRefreshTokenRequest(code: string, codeVerifier: string | undefined): Promise<void> {
     if (!this.configuration) {
       log("Unknown service configuration");
       return Promise.resolve();
     }
-
     const extras: StringMap = {};
-
-    if(codeVerifier) {
+    if (codeVerifier) {
       extras.code_verifier = codeVerifier;
     }
-
     // use the code to make the token request.
     let request = new TokenRequest({
       client_id: clientId,
@@ -159,6 +159,7 @@ export class AuthFlow {
       refresh_token: undefined,
       extras: extras
     });
+    log("Making refresh token request ", request);
 
     return this.tokenHandler
       .performTokenRequest(this.configuration, request)
@@ -168,7 +169,7 @@ export class AuthFlow {
         this.accessTokenResponse = response;
         return response;
       })
-      .then(() => {});
+      .then(() => { });
   }
 
   loggedIn(): boolean {
@@ -201,7 +202,6 @@ export class AuthFlow {
       refresh_token: this.refreshToken,
       extras: undefined
     });
-
     return this.tokenHandler
       .performTokenRequest(this.configuration, request)
       .then(response => {

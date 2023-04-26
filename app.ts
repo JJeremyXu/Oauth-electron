@@ -29,10 +29,11 @@ interface SnackBarOptions {
 }
 
 interface UserInfo {
-  name: string;
-  given_name: string;
-  family_name: string;
-  picture: string;
+  email: string;
+  profile: {
+    name: string;
+    group: string;
+  }
 }
 
 export class App {
@@ -117,10 +118,10 @@ export class App {
     this.handleSignIn.textContent = SIGN_OUT;
     this.fetchUserInfo.style.display = '';
     if (this.userInfo) {
-      this.userProfileImage.src = `${this.userInfo.picture}?sz=96`;
-      this.userName.textContent = this.userInfo.name;
+      // this.userProfileImage.src = `${this.userInfo.picture}?sz=96`;
+      this.userName.textContent = this.userInfo.profile.name;
       this.showSnackBar(
-        { message: `Welcome ${this.userInfo.name}`, timeout: 4000 });
+        { message: `Welcome ${this.userInfo.profile.name} from ${this.userInfo.profile.group}`, timeout: 4000 });
       this.userCard.style.display = '';
     }
   }

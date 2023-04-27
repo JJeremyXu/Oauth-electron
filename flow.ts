@@ -53,7 +53,7 @@ export class AuthStateEmitter extends EventEmitter {
 const requestor = new NodeRequestor();
 
 /* an example open id connect provider */
-const openIdConnectUrl = "http://localhost:8001";
+const openIdConnectUrl = 'https://staging.auth.orosound.com';
 
 /* example client configuration */
 const clientId =

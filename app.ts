@@ -71,7 +71,7 @@ export class App {
       log('Fetching user info');
       this.authFlow.performWithFreshTokens().then(accessToken => {
         let request =
-          new Request('http://localhost:8001/me', {
+          new Request('https://staging.auth.orosound.com/me', {
             headers: new Headers({ 'Authorization': `Bearer ${accessToken}` }),
             method: 'GET',
             cache: 'no-cache'

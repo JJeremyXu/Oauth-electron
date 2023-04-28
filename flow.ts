@@ -16,6 +16,7 @@
 
 import { AuthorizationRequest } from "@openid/appauth/built/authorization_request";
 import {
+  AuthorizationListener,
   AuthorizationNotifier,
   AuthorizationRequestHandler,
   AuthorizationRequestResponse,
@@ -82,7 +83,7 @@ export class AuthFlow {
     this.authorizationHandler.setAuthorizationNotifier(this.notifier);
     // set a listener to listen for authorization responses
     // make refresh and access token requests.
-    this.notifier.setAuthorizationListener((request, response, error) => {
+    const listener: AuthorizationListener = (request, response, error) => {
       log("Authorization request complete ", request, response, error);
       if (response) {
         let codeVerifier: string | undefined;
@@ -100,7 +101,8 @@ export class AuthFlow {
           log(`Something bad happened when making refresh token request ${error}`)
         }
       }
-    });
+    }
+    this.notifier.setAuthorizationListener(listener);
   }
 
   fetchServiceConfiguration(): Promise<void> {
@@ -164,6 +166,7 @@ export class AuthFlow {
     return this.tokenHandler
       .performTokenRequest(this.configuration, request)
       .then(response => {
+        console.log(response)
         log(`Refresh Token is ${response.refreshToken}`);
         this.refreshToken = response.refreshToken;
         this.accessTokenResponse = response;
@@ -182,6 +185,7 @@ export class AuthFlow {
   }
 
   performWithFreshTokens(): Promise<string> {
+    log("Performing action with fresh tokens")
     if (!this.configuration) {
       log("Unknown service configuration");
       return Promise.reject("Unknown service configuration");
@@ -205,6 +209,7 @@ export class AuthFlow {
     return this.tokenHandler
       .performTokenRequest(this.configuration, request)
       .then(response => {
+        console.log('performWithFreshTokens', response)
         this.accessTokenResponse = response;
         return response.accessToken;
       });
